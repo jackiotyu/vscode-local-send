@@ -1,26 +1,32 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { LocalSendServer } from './server/localSendServer';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let localSendServer: LocalSendServer | null = null;
+
 export function activate(context: vscode.ExtensionContext) {
+    const startServer = vscode.commands.registerCommand('vscode-local-send.startServer', () => {
+        if (!localSendServer) {
+            localSendServer = new LocalSendServer();
+            localSendServer.start();
+        } else {
+            vscode.window.showInformationMessage('LocalSend server is already running');
+        }
+    });
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-extension-rspack" is now active!');
+    const stopServer = vscode.commands.registerCommand('vscode-local-send.stopServer', () => {
+        if (localSendServer) {
+            localSendServer.stop();
+            localSendServer = null;
+        } else {
+            vscode.window.showInformationMessage('LocalSend server is not running');
+        }
+    });
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vscode-extension-rspack.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from vscode-extension-rspack!');
-	});
-
-	context.subscriptions.push(disposable);
+    context.subscriptions.push(startServer, stopServer);
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+    if (localSendServer) {
+        localSendServer.stop();
+    }
+}
