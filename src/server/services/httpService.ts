@@ -1,12 +1,16 @@
 import Fastify, { FastifyInstance } from 'fastify';
-import { FileHandler } from './fileHandler';
-import { RegisterInfo } from './types';
+import { BaseService } from './baseService';
+import { FileService } from './fileService';
+import { RegisterInfo } from '../types';
+import { getDeviceConfig } from '../deviceConfig';
+import { logger } from '../../utils/logger';
 
-export class HttpServer {
+export class HttpService extends BaseService {
     private app: FastifyInstance;
 
-    constructor(private fileHandler: FileHandler) {
-        this.app = Fastify({ logger: true });
+    constructor(private fileService: FileService) {
+        super();
+        this.app = Fastify({ logger: false });
         this.setupServer();
     }
 
@@ -18,7 +22,7 @@ export class HttpServer {
     private setupContentParser() {
         this.app.addContentTypeParser('*', (req, payload, done) => {
             const chunks: Buffer[] = [];
-            payload.on('data', chunk => chunks.push(chunk));
+            payload.on('data', (chunk) => chunks.push(chunk));
             payload.on('end', () => done(null, Buffer.concat(chunks)));
         });
     }
@@ -26,40 +30,40 @@ export class HttpServer {
     private setupRoutes() {
         this.app.post('/api/localsend/v2/register', async (request) => {
             const body = request.body as RegisterInfo;
-            console.log('Device registered:', body);
+            logger.info(`Device registered: ${JSON.stringify(body)}`);
         });
 
         this.app.post('/api/localsend/v2/prepare-download', async (request) => {
-            console.log('prepare-download', request.body);
+            logger.info(`prepare-download: ${JSON.stringify(request.body)}`);
         });
 
         this.app.post('/api/localsend/v2/prepare-upload', async (request) => {
-            return this.fileHandler.prepareUpload(request.body as any);
+            return this.fileService.prepareDownload(request.body as any);
         });
 
         this.app.post('/api/localsend/v2/upload', async (request, reply) => {
             const query = request.query as any;
-            const contentType = request.headers['content-type'] || 'application/octet-stream';
             try {
-                return await this.fileHandler.handleUpload(query, contentType, request.body as Buffer);
+                return await this.fileService.handleUpload(query, request.body as Buffer);
             } catch (error: any) {
                 reply.status(500).send({ error: error.message });
             }
         });
 
         this.app.post('/api/localsend/v2/cancel', async (request) => {
-            console.log('Transfer cancelled:', request.body);
+            logger.info(`Transfer cancelled: ${JSON.stringify(request.body)}`);
             return { message: 'Transfer cancelled' };
         });
-
-        this.app.get('/', () => ({ message: 'hello' }));
     }
 
-    public async start(port: number) {
+    async start(): Promise<void> {
+        const { port } = getDeviceConfig();
         await this.app.listen({ port, host: '0.0.0.0' });
+        this._started = true;
     }
 
-    public async stop() {
+    async stop(): Promise<void> {
         await this.app.close();
+        this._started = false;
     }
 }

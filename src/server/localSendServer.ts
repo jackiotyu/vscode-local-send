@@ -1,50 +1,25 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { PORT, DEVICE_NAME } from './config';
-import { DiscoveryService } from './discovery';
-import { FileHandler } from './fileHandler';
-import { RegisterInfo } from './types';
-import { HttpServer } from './httpServer';
-import os from 'os';
+import { ServiceManager } from './services/serviceManager';
+import { getDeviceConfig } from './deviceConfig';
 
 export class LocalSendServer {
-    private discoveryService: DiscoveryService;
-    private fileHandler: FileHandler;
-    private httpServer: HttpServer;
-    private port: number;
-    private deviceName: string;
+    private serviceManager: ServiceManager;
+    private started: boolean = false;
 
     constructor() {
-        this.port = vscode.workspace.getConfiguration('localSend').get('port', PORT);
-        this.deviceName = vscode.workspace.getConfiguration('localSend').get('deviceName', DEVICE_NAME);
-        this.fileHandler = new FileHandler(path.join(os.tmpdir(), 'vscode-local-send', 'uploads'));
-        this.httpServer = new HttpServer(this.fileHandler);
-        this.discoveryService = new DiscoveryService(this.deviceInfo);
-    }
-
-    private get fingerprint() {
-        return `vscode-local-send:${this.port}`;
-    }
-
-    private get deviceInfo(): RegisterInfo {
-        return {
-            alias: this.deviceName,
-            version: '2.0',
-            deviceModel: this.deviceName,
-            deviceType: 'desktop',
-            fingerprint: this.fingerprint,
-            port: this.port,
-            protocol: 'http',
-            download: true,
-            announce: true,
-        };
+        this.serviceManager = new ServiceManager();
     }
 
     public async start() {
+        if (this.started) {
+            vscode.window.showInformationMessage('LocalSend server is already running');
+            return;
+        }
+
         try {
-            await this.httpServer.start(this.port);
-            this.discoveryService.start();
-            vscode.window.showInformationMessage(`LocalSend server started on ${this.port}`);
+            await this.serviceManager.start();
+            this.started = true;
+            vscode.window.showInformationMessage(`LocalSend server started on ${getDeviceConfig().port}`);
         } catch (err) {
             if (err instanceof Error) {
                 vscode.window.showErrorMessage(`Failed to start server: ${err.message}`);
@@ -53,8 +28,20 @@ export class LocalSendServer {
     }
 
     public async stop() {
-        await this.httpServer.stop();
-        this.discoveryService.stop();
-        vscode.window.showInformationMessage('LocalSend server stopped');
+        if (!this.started) {
+            vscode.window.showInformationMessage('LocalSend server is not started');
+            return;
+        }
+
+        try {
+            await this.serviceManager.stop();
+            vscode.window.showInformationMessage('LocalSend server stopped');
+        } catch (err) {
+            if (err instanceof Error) {
+                vscode.window.showErrorMessage(`Failed to stop server: ${err.message}`);
+            }
+        } finally {
+            this.started = false;
+        }
     }
 }

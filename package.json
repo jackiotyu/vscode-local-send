@@ -22,11 +22,15 @@
     "commands": [
       {
         "command": "vscode-local-send.startServer",
-        "title": "Start LocalSend Server"
+        "title": "LocalSend: Start Server"
       },
       {
         "command": "vscode-local-send.stopServer",
-        "title": "Stop LocalSend Server"
+        "title": "LocalSend: Stop Server"
+      },
+      {
+        "command": "vscode-local-send.openDownloadDir",
+        "title": "LocalSend: Open download dir"
       }
     ],
     "configuration": {

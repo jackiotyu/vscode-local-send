@@ -1,36 +1,25 @@
 import dgram from 'dgram';
-import { MULTICAST_ADDR, PORT } from './config';
-import { RegisterInfo } from './types';
+import { BaseService } from './baseService';
+import { MULTICAST_ADDR, PORT } from '../config';
+import { RegisterInfo } from '../types';
+import { getDeviceConfig } from '../deviceConfig';
 import * as vscode from 'vscode';
+import { logger } from '../../utils/logger';
+import { clientStore } from '../store';
 
-export class DiscoveryService {
+export class DiscoveryService extends BaseService {
     private discoverySocket?: dgram.Socket;
     private messageBuffer: { [ip: string]: string } = {};
     private discoveredDevices: { [ip: string]: any } = {};
     private oldIds = new Set<string>();
-
-    constructor(private deviceInfo: RegisterInfo) {}
+    private broadcastInterval?: NodeJS.Timeout;
 
     private checkDeviceChange(address: string, data: RegisterInfo) {
         if (this.oldIds.has(address)) {
             return;
         }
         this.oldIds.add(address);
-        console.log(`Discovered device: ${data.alias} at ${address}`);
-    }
-
-    public start() {
-        if (this.discoverySocket) {
-            this.discoverySocket.close();
-        }
-
-        this.discoverySocket = dgram.createSocket({
-            type: 'udp4',
-            reuseAddr: true,
-        });
-
-        this.setupListeners();
-        this.bindSocket();
+        logger.info(`Discovered device: ${data.alias} at ${address}`);
     }
 
     private setupListeners() {
@@ -40,7 +29,7 @@ export class DiscoveryService {
             this.discoverySocket!.setBroadcast(true);
             this.discoverySocket!.setMulticastTTL(128);
             this.discoverySocket!.addMembership(MULTICAST_ADDR);
-            console.log(`UDP socket listening on ${MULTICAST_ADDR}:${PORT}`);
+            logger.info(`UDP socket listening on ${MULTICAST_ADDR}:${PORT}`);
         });
 
         this.discoverySocket.on('message', this.handleMessage.bind(this));
@@ -61,35 +50,62 @@ export class DiscoveryService {
             const data: RegisterInfo = JSON.parse(msg.toString());
             this.discoveredDevices[rinfo.address] = data;
             this.messageBuffer[ip] = '';
+            clientStore.set(data.fingerprint, {
+                address: ip,
+                device: data,
+            });
             this.checkDeviceChange(ip, data);
         } catch (e) {
-            console.error('Failed to parse message:', e);
+            logger.error('Failed to parse message:', e as Error);
         }
     }
 
     private handleError(err: Error) {
         vscode.window.showErrorMessage(`[UDP] Error: ${err.message}`);
-        console.error('UDP error:', err);
-    }
-
-    private bindSocket() {
-        this.discoverySocket?.bind(PORT, () => {
-            this.startBroadcast();
-        });
+        logger.error('UDP error:', err);
     }
 
     private startBroadcast() {
-        setInterval(() => {
-            const message = JSON.stringify(this.deviceInfo);
+        const message = JSON.stringify(getDeviceConfig().deviceInfo);
+        this.broadcastInterval = setInterval(() => {
             this.discoverySocket!.send(message, 0, message.length, PORT, MULTICAST_ADDR, (err) => {
                 if (err) {
-                    console.error('Send error:', err);
+                    logger.error('Send error:', err);
                 }
             });
         }, 5000);
     }
 
-    public stop() {
-        this.discoverySocket?.close();
+    async start(): Promise<void> {
+        if (this.discoverySocket) {
+            await this.stop();
+        }
+
+        this.discoverySocket = dgram.createSocket({
+            type: 'udp4',
+            reuseAddr: true,
+        });
+
+        this.setupListeners();
+
+        await new Promise<void>((resolve) => {
+            this.discoverySocket!.bind(PORT, () => {
+                this.startBroadcast();
+                resolve();
+            });
+        });
+
+        this._started = true;
+    }
+
+    async stop(): Promise<void> {
+        if (this.broadcastInterval) {
+            clearInterval(this.broadcastInterval);
+        }
+        if (this.discoverySocket) {
+            this.discoverySocket.close();
+            this.discoverySocket = undefined;
+        }
+        this._started = false;
     }
 }

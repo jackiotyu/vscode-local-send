@@ -11,48 +11,43 @@ export interface FileItem {
 
 export type FileId = string;
 export type FilesRecord = Record<FileId, FileItem>;
+export type Fingerprint = string;
+export type SessionId = string;
 
 export interface RegisterInfo {
     alias: string;
     version: string;
     deviceModel: string;
     deviceType: DeviceType;
-    fingerprint: string;
+    fingerprint: Fingerprint;
     port: number;
     protocol: 'http' | 'https';
     download: boolean;
     announce?: boolean;
 }
 
+export interface DeviceInfo {
+    alias: string;
+    version: string;
+    deviceModel: string;
+    deviceType: DeviceType;
+    fingerprint: Fingerprint;
+    download: boolean;
+}
+
 export interface PrepareUploadInfo {
-    info: {
-        alias: string;
-        version: string;
-        deviceModel: string;
-        deviceType: DeviceType;
-        fingerprint: string;
-        port: number;
-        protocol: 'http' | 'https';
-        download: boolean;
-    };
+    info: RegisterInfo;
     files: FilesRecord;
 }
 
 export interface PrepareDownloadInfo {
-    info: {
-        alias: string;
-        version: string;
-        deviceModel: string;
-        deviceType: DeviceType;
-        fingerprint: string;
-        download: boolean;
-    };
-    sessionId: string;
+    info: DeviceInfo;
+    sessionId: SessionId;
     files: FilesRecord;
 }
 
 export interface UploadMeta {
-    sessionId: string;
-    fileId: string;
+    sessionId: SessionId;
+    fileId: FileId;
     token: string;
 }
