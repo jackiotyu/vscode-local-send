@@ -5,6 +5,7 @@ import { DiscoveryService } from './discovery';
 import { FileHandler } from './fileHandler';
 import { RegisterInfo } from './types';
 import { HttpServer } from './httpServer';
+import os from 'os';
 
 export class LocalSendServer {
     private discoveryService: DiscoveryService;
@@ -16,7 +17,7 @@ export class LocalSendServer {
     constructor() {
         this.port = vscode.workspace.getConfiguration('localSend').get('port', PORT);
         this.deviceName = vscode.workspace.getConfiguration('localSend').get('deviceName', DEVICE_NAME);
-        this.fileHandler = new FileHandler(path.join(__dirname, 'uploads'));
+        this.fileHandler = new FileHandler(path.join(os.tmpdir(), 'vscode-local-send', 'uploads'));
         this.httpServer = new HttpServer(this.fileHandler);
         this.discoveryService = new DiscoveryService(this.deviceInfo);
     }
