@@ -1,7 +1,7 @@
 {
-  "name": "vscode-extension-rspack",
+  "name": "vscode-local-send",
   "publisher": "jackiotyu",
-  "displayName": "vscode-extension-rspack",
+  "displayName": "LocalSend (unofficial)",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -12,10 +12,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jackiotyu/vscode-extension-rspack.git"
+    "url": "https://github.com/jackiotyu/vscode-local-send.git"
   },
   "bugs": {
-    "url": "https://github.com/jackiotyu/vscode-extension-rspack/issues"
+    "url": "https://github.com/jackiotyu/vscode-local-send/issues"
   },
   "activationEvents": [],
   "contributes": {
